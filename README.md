@@ -44,17 +44,17 @@
 ## 🚀 การเริ่มต้นใช้งาน (Getting Started)
 
 ### เข้าใช้งานผ่าน Web Browser
-- **Frontend URL:** [http://localhost:5180](http://localhost:5180)
-- **Backend API URL:** [http://localhost:3600](http://localhost:3600)
-- **เครื่องอื่นในวงแลน:** [http://10.10.20.224:5180](http://10.10.20.224:5180)
+- **Production Server (รพ.โคกศรีสุพรรณ):** [http://192.168.2.202:3600](http://192.168.2.202:3600) (ติดตั้งที่ `/opt/ppfs-kpi` รันผ่าน PM2 `ppfs-kpi`)
+- **Local Frontend URL (Dev):** [http://localhost:5180](http://localhost:5180)
+- **Local Backend & Production Bundle URL:** [http://localhost:3600](http://localhost:3600)
 
 ### คำสั่งเปิดระบบ (เมื่อต้องการเปิดรันใหม่)
 ```bash
 cd d:\ppfs-kpi
 
-# 1. รัน Backend API Server (Port 3600)
-npm run server
+# 1. Build Frontend Bundle
+npm run build
 
-# 2. รัน Frontend Web App (Port 5180)
-npm run dev
+# 2. รัน Server (Port 3600 - ให้บริการทั้ง Web UI และ API)
+npm run server
 ```

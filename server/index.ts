@@ -125,6 +125,12 @@ app.get('/api/ppfs/export-excel', async (req, res) => {
   }
 });
 
+// Export TB High Risk Screening Targets to Excel (ตามเกณฑ์ 9 กลุ่มเสี่ยง Type 1 & 3)
+app.get('/api/ppfs/export-tb-risk-excel', (req, res) => {
+  const filePath = path.resolve('d:/ppfs-kpi/TB_HighRisk_Screening_Targets_KhokSiSuphan.xlsx');
+  res.download(filePath, 'รายชื่อกลุ่มเป้าหมายคัดกรองวัณโรคกลุ่มเสี่ยงสูง_Type1และ3.xlsx');
+});
+
 // Pre-Audit Data Quality Check
 app.get('/api/ppfs/audit', async (req, res) => {
   try {
@@ -194,6 +200,15 @@ app.post('/api/network/check-node', async (req, res) => {
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Node check failed' });
   }
+});
+
+// Serve static production frontend from ../dist
+const distPath = path.resolve(__dirname, '../dist');
+app.use(express.static(distPath));
+
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 process.on('uncaughtException', (err) => {
