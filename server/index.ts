@@ -254,4 +254,8 @@ app.listen(PORT, () => {
   console.log(`🚀 PPFS KPI Platform Server running on port ${PORT}`);
   console.log(`📡 Connected to HOSxP Database: ${process.env.HOSXP_HOST}:${process.env.HOSXP_PORT || 3306}`);
   console.log(`🏥 CUP Network: ${process.env.CUP_NAME || 'CUP โคกศรีสุพรรณ'}`);
+  // Pre-warm cache in background so all pages load instantaneously
+  setTimeout(() => {
+    PPFSEngine.warmupCache();
+  }, 500);
 });
