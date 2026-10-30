@@ -28,7 +28,9 @@ const NETWORK_CENTERS = [
 
 export const MonthlyMatrixPage: React.FC<MonthlyMatrixPageProps> = ({ onNavigateToOutreach }) => {
   const [selectedCenter, setSelectedCenter] = useState<string>('ALL');
-  const [fiscalYear, setFiscalYear] = useState<number>(2568);
+  const today = new Date();
+  const currentFyThai = (today.getMonth() >= 9 ? today.getFullYear() + 1 : today.getFullYear()) + 543;
+  const [fiscalYear, setFiscalYear] = useState<number>(currentFyThai >= 2570 ? 2570 : 2569);
   const [matrixData, setMatrixData] = useState<MonthlyMatrixData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -139,9 +141,10 @@ export const MonthlyMatrixPage: React.FC<MonthlyMatrixPageProps> = ({ onNavigate
                   cursor: 'pointer'
                 }}
               >
-                <option value={2569}>ปีงบประมาณ 2569</option>
-                <option value={2568}>ปีงบประมาณ 2568</option>
-                <option value={2567}>ปีงบประมาณ 2567</option>
+                <option value={2570}>ปีงบประมาณ 2570 (1 ต.ค. 69 - 30 ก.ย. 70)</option>
+                <option value={2569}>ปีงบประมาณ 2569 (1 ต.ค. 68 - 30 ก.ย. 69)</option>
+                <option value={2568}>ปีงบประมาณ 2568 (1 ต.ค. 67 - 30 ก.ย. 68)</option>
+                <option value={2567}>ปีงบประมาณ 2567 (1 ต.ค. 66 - 30 ก.ย. 67)</option>
               </select>
             </div>
           </div>

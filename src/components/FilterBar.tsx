@@ -108,16 +108,46 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
         {/* Quick FY buttons */}
         <button
+          onClick={() => onChangeDates('2026-10-01', '2027-09-30')}
+          style={{
+            padding: '0.35rem 0.6rem',
+            borderRadius: '6px',
+            border: startDate === '2026-10-01' ? '1px solid #0284c7' : '1px solid #e2e8f0',
+            backgroundColor: startDate === '2026-10-01' ? '#e0f2fe' : '#f1f5f9',
+            fontSize: '0.75rem',
+            cursor: 'pointer',
+            fontWeight: 600,
+            color: startDate === '2026-10-01' ? '#0369a1' : '#475569'
+          }}
+        >
+          ปีงบ 2570
+        </button>
+        <button
+          onClick={() => onChangeDates('2025-10-01', '2026-09-30')}
+          style={{
+            padding: '0.35rem 0.6rem',
+            borderRadius: '6px',
+            border: startDate === '2025-10-01' ? '1px solid #0284c7' : '1px solid #e2e8f0',
+            backgroundColor: startDate === '2025-10-01' ? '#e0f2fe' : '#f1f5f9',
+            fontSize: '0.75rem',
+            cursor: 'pointer',
+            fontWeight: 600,
+            color: startDate === '2025-10-01' ? '#0369a1' : '#475569'
+          }}
+        >
+          ปีงบ 2569
+        </button>
+        <button
           onClick={() => onChangeDates('2024-10-01', '2025-09-30')}
           style={{
             padding: '0.35rem 0.6rem',
             borderRadius: '6px',
-            border: '1px solid #e2e8f0',
-            backgroundColor: '#f1f5f9',
+            border: startDate === '2024-10-01' ? '1px solid #0284c7' : '1px solid #e2e8f0',
+            backgroundColor: startDate === '2024-10-01' ? '#e0f2fe' : '#f1f5f9',
             fontSize: '0.75rem',
             cursor: 'pointer',
             fontWeight: 600,
-            color: '#475569'
+            color: startDate === '2024-10-01' ? '#0369a1' : '#475569'
           }}
         >
           ปีงบ 2568
@@ -127,12 +157,12 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           style={{
             padding: '0.35rem 0.6rem',
             borderRadius: '6px',
-            border: '1px solid #e2e8f0',
-            backgroundColor: '#f1f5f9',
+            border: startDate === '2023-10-01' ? '1px solid #0284c7' : '1px solid #e2e8f0',
+            backgroundColor: startDate === '2023-10-01' ? '#e0f2fe' : '#f1f5f9',
             fontSize: '0.75rem',
             cursor: 'pointer',
             fontWeight: 600,
-            color: '#475569'
+            color: startDate === '2023-10-01' ? '#0369a1' : '#475569'
           }}
         >
           ปีงบ 2567
