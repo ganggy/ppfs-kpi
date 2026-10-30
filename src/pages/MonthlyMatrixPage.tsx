@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { MonthlyMatrixData } from '../types/ppfs';
+import { YearlyComparisonPage } from './YearlyComparisonPage';
 import { 
   CalendarDays, 
   Download, 
@@ -338,6 +339,11 @@ export const MonthlyMatrixPage: React.FC<MonthlyMatrixPageProps> = ({ onNavigate
             </table>
           </div>
         )}
+      </div>
+
+      {/* Multi-Year Comparison Table Section */}
+      <div style={{ marginTop: '2rem' }}>
+        <YearlyComparisonPage onNavigateToOutreach={onNavigateToOutreach} />
       </div>
     </div>
   );

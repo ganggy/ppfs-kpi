@@ -121,4 +121,22 @@ export const api = {
     if (centerId) query.set('centerId', centerId);
     return `${API_BASE}/ppfs/export-monthly-matrix?${query.toString()}`;
   },
+
+  // Get Multi-Year Comparison Table (FY 2567 - 2570)
+  async getYearlyComparison(params?: { centerId?: string }): Promise<any> {
+    const query = new URLSearchParams();
+    if (params?.centerId) query.set('centerId', params.centerId);
+
+    const res = await fetch(`${API_BASE}/ppfs/yearly-comparison?${query.toString()}`);
+    if (!res.ok) throw new Error('Failed to load yearly comparison');
+    const json = await res.json();
+    return json.data;
+  },
+
+  // Get Export Multi-Year Comparison URL
+  getExportYearlyComparisonUrl(centerId?: string): string {
+    const query = new URLSearchParams();
+    if (centerId) query.set('centerId', centerId);
+    return `${API_BASE}/ppfs/export-yearly-comparison?${query.toString()}`;
+  },
 };

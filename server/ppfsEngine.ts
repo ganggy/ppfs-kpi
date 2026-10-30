@@ -1200,4 +1200,247 @@ export class PPFSEngine {
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
     return buffer;
   }
+
+  // Multi-Year Comparison Table across FY 2567, 2568, 2569, 2570 for all 30 PPFS services
+  static async getYearlyComparison(options: { centerId?: string }) {
+    const centerId = options.centerId || 'ALL';
+    const centerName = centerId === 'ALL' ? 'ทั้งหมดใน CUP โคกศรีสุพรรณ' : PCU_REGISTRY[centerId]?.name || centerId;
+
+    const startDate = '2023-10-01'; // Start of FY 2567
+    const endDate = '2027-09-30';   // End of FY 2570
+
+    const calcPct = (curr: number, prev: number): number | null => {
+      if (prev === 0) return curr > 0 ? 100 : 0;
+      return Number((((curr - prev) / prev) * 100).toFixed(1));
+    };
+
+    const rows = await runInBatches(PPFS_INDICATORS, 6, async (ind) => {
+      // 1. Target count
+      const denom = buildDenominatorWhere(ind, centerId, '2025-10-01');
+      const [targetRows]: any = await pool.query(
+        `SELECT COUNT(DISTINCT p.hn) as target_count FROM patient p WHERE ${denom.whereSql}`,
+        denom.params
+      );
+      const rawTargetCount = Number(targetRows[0]?.target_count || 0);
+      const ratio = getCalibrationRatio(centerId);
+      const prevalenceFactor = ind.nhsoRules?.targetPrevalenceFactor ?? 1.0;
+
+      // 2. Served counts grouped by Fiscal Year (2567, 2568, 2569, 2570)
+      const num = buildNumeratorWhere(ind, startDate, endDate, centerId);
+      const ppIds = ind.nhsoRules?.ppSpecialTypeIds;
+
+      let fyRows: any[] = [];
+      if (ppIds && ppIds.length > 0) {
+        const ppPlaceholders = ppIds.map(() => '?').join(',');
+        const [r]: any = await pool.query(
+          `SELECT fy_thai, COUNT(DISTINCT hn) as pt_count FROM (
+             SELECT 
+               CASE WHEN MONTH(o.vstdate) >= 10 THEN YEAR(o.vstdate) + 544 ELSE YEAR(o.vstdate) + 543 END as fy_thai,
+               o.hn
+             FROM ovst o
+             INNER JOIN ovstdiag od ON od.vn = o.vn
+             INNER JOIN patient p ON p.hn = o.hn
+             WHERE ${num.whereSql}
+             UNION
+             SELECT 
+               CASE WHEN MONTH(o.vstdate) >= 10 THEN YEAR(o.vstdate) + 544 ELSE YEAR(o.vstdate) + 543 END as fy_thai,
+               o.hn
+             FROM ovst o
+             INNER JOIN pp_special pp ON pp.vn = o.vn
+             INNER JOIN patient p ON p.hn = o.hn
+             WHERE ${num.baseWhereSql} AND pp.pp_special_type_id IN (${ppPlaceholders})
+           ) combined_fy
+           GROUP BY fy_thai`,
+          [...num.params, ...num.baseParams, ...ppIds]
+        );
+        fyRows = r;
+      } else {
+        const [r]: any = await pool.query(
+          `SELECT 
+             CASE WHEN MONTH(o.vstdate) >= 10 THEN YEAR(o.vstdate) + 544 ELSE YEAR(o.vstdate) + 543 END as fy_thai,
+             COUNT(DISTINCT p.hn) as pt_count
+           FROM ovst o
+           INNER JOIN ovstdiag od ON od.vn = o.vn
+           INNER JOIN patient p ON p.hn = o.hn
+           WHERE ${num.whereSql}
+           GROUP BY fy_thai`,
+          num.params
+        );
+        fyRows = r;
+      }
+
+      const fyMap: Record<number, number> = {};
+      for (const r of fyRows) {
+        fyMap[Number(r.fy_thai)] = Number(r.pt_count || 0);
+      }
+
+      const fy2567 = fyMap[2567] || 0;
+      const fy2568 = fyMap[2568] || 0;
+      const fy2569 = fyMap[2569] || 0;
+      const fy2570 = fyMap[2570] || 0;
+
+      const maxServed = Math.max(fy2567, fy2568, fy2569, fy2570);
+      const targetCount = Math.max(Math.max(1, Math.round(rawTargetCount * ratio * prevalenceFactor)), maxServed);
+
+      const diff68_67 = fy2568 - fy2567;
+      const pct68_67 = calcPct(fy2568, fy2567);
+
+      const diff69_68 = fy2569 - fy2568;
+      const pct69_68 = calcPct(fy2569, fy2568);
+
+      const diff70_69 = fy2570 - fy2569;
+      const pct70_69 = calcPct(fy2570, fy2569);
+
+      return {
+        indicatorId: ind.id,
+        code: ind.code,
+        title: ind.title,
+        shortName: ind.shortName,
+        category: ind.category,
+        targetGroupDesc: ind.targetGroupDesc,
+        unitPrice: ind.unitPrice,
+        targetCount,
+        years: {
+          fy2567,
+          fy2568,
+          fy2569,
+          fy2570,
+        },
+        revenues: {
+          rev2567: fy2567 * ind.unitPrice,
+          rev2568: fy2568 * ind.unitPrice,
+          rev2569: fy2569 * ind.unitPrice,
+          rev2570: fy2570 * ind.unitPrice,
+        },
+        changes: {
+          diff68_67,
+          pct68_67,
+          diff69_68,
+          pct69_68,
+          diff70_69,
+          pct70_69,
+        },
+      };
+    });
+
+    const totals = {
+      targetCount: 0,
+      fy2567: 0,
+      fy2568: 0,
+      fy2569: 0,
+      fy2570: 0,
+      rev2567: 0,
+      rev2568: 0,
+      rev2569: 0,
+      rev2570: 0,
+      diff68_67: 0,
+      pct68_67: 0 as number | null,
+      diff69_68: 0,
+      pct69_68: 0 as number | null,
+      diff70_69: 0,
+      pct70_69: 0 as number | null,
+    };
+
+    for (const r of rows) {
+      totals.targetCount += r.targetCount;
+      totals.fy2567 += r.years.fy2567;
+      totals.fy2568 += r.years.fy2568;
+      totals.fy2569 += r.years.fy2569;
+      totals.fy2570 += r.years.fy2570;
+      totals.rev2567 += r.revenues.rev2567;
+      totals.rev2568 += r.revenues.rev2568;
+      totals.rev2569 += r.revenues.rev2569;
+      totals.rev2570 += r.revenues.rev2570;
+    }
+
+    totals.diff68_67 = totals.fy2568 - totals.fy2567;
+    totals.pct68_67 = calcPct(totals.fy2568, totals.fy2567);
+    totals.diff69_68 = totals.fy2569 - totals.fy2568;
+    totals.pct69_68 = calcPct(totals.fy2569, totals.fy2568);
+    totals.diff70_69 = totals.fy2570 - totals.fy2569;
+    totals.pct70_69 = calcPct(totals.fy2570, totals.fy2569);
+
+    return {
+      selectedCenter: centerId,
+      selectedCenterName: centerName,
+      rows,
+      totals,
+    };
+  }
+
+  // Export Multi-Year Comparison Table to Excel (.xlsx)
+  static async exportYearlyComparisonExcel(options: { centerId?: string }): Promise<Buffer> {
+    const data = await this.getYearlyComparison(options);
+    const sheetRows: any[] = [];
+
+    for (const r of data.rows) {
+      sheetRows.push({
+        'รหัส': r.code,
+        'รายการบริการ PPFS': r.shortName,
+        'อัตราจ่าย (บาท)': r.unitPrice,
+        'เป้าหมายต่อปี (คน)': r.targetCount,
+        'ปีงบ 2567 (คน)': r.years.fy2567,
+        'ปีงบ 2568 (คน)': r.years.fy2568,
+        'เปลี่ยนแปลง 67->68 (คน)': r.changes.diff68_67,
+        '% เปลี่ยนแปลง 67->68': `${r.changes.pct68_67 ?? 0}%`,
+        'ปีงบ 2569 (คน)': r.years.fy2569,
+        'เปลี่ยนแปลง 68->69 (คน)': r.changes.diff69_68,
+        '% เปลี่ยนแปลง 68->69': `${r.changes.pct69_68 ?? 0}%`,
+        'ปีงบ 2570 (คน)': r.years.fy2570,
+        'เปลี่ยนแปลง 69->70 (คน)': r.changes.diff70_69,
+        '% เปลี่ยนแปลง 69->70': `${r.changes.pct70_69 ?? 0}%`,
+        'รายรับ ปีงบ 67 (บาท)': r.revenues.rev2567,
+        'รายรับ ปีงบ 68 (บาท)': r.revenues.rev2568,
+        'รายรับ ปีงบ 69 (บาท)': r.revenues.rev2569,
+        'รายรับ ปีงบ 70 (บาท)': r.revenues.rev2570,
+      });
+    }
+
+    sheetRows.push({
+      'รหัส': 'รวม',
+      'รายการบริการ PPFS': 'รวมทุกบริการ PPFS (30 รายการ)',
+      'อัตราจ่าย (บาท)': '-',
+      'เป้าหมายต่อปี (คน)': data.totals.targetCount,
+      'ปีงบ 2567 (คน)': data.totals.fy2567,
+      'ปีงบ 2568 (คน)': data.totals.fy2568,
+      'เปลี่ยนแปลง 67->68 (คน)': data.totals.diff68_67,
+      '% เปลี่ยนแปลง 67->68': `${data.totals.pct68_67 ?? 0}%`,
+      'ปีงบ 2569 (คน)': data.totals.fy2569,
+      'เปลี่ยนแปลง 68->69 (คน)': data.totals.diff69_68,
+      '% เปลี่ยนแปลง 68->69': `${data.totals.pct69_68 ?? 0}%`,
+      'ปีงบ 2570 (คน)': data.totals.fy2570,
+      'เปลี่ยนแปลง 69->70 (คน)': data.totals.diff70_69,
+      '% เปลี่ยนแปลง 69->70': `${data.totals.pct70_69 ?? 0}%`,
+      'รายรับ ปีงบ 67 (บาท)': data.totals.rev2567,
+      'รายรับ ปีงบ 68 (บาท)': data.totals.rev2568,
+      'รายรับ ปีงบ 69 (บาท)': data.totals.rev2569,
+      'รายรับ ปีงบ 70 (บาท)': data.totals.rev2570,
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(sheetRows);
+    worksheet['!cols'] = [
+      { wch: 8 },
+      { wch: 36 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'PPFS_Yearly_Comparison');
+    return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  }
 }

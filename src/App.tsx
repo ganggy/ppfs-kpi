@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { FilterBar } from './components/FilterBar';
 import { OverviewPage } from './pages/OverviewPage';
+import { YearlyComparisonPage } from './pages/YearlyComparisonPage';
 import { MonthlyMatrixPage } from './pages/MonthlyMatrixPage';
 import { IndicatorDetailPage } from './pages/IndicatorDetailPage';
 import { OutreachPage } from './pages/OutreachPage';
@@ -61,7 +62,7 @@ export function App() {
       {/* Main Container */}
       <main className="main-content">
         {/* Global Filter Bar (shown on relevant tabs) */}
-        {activeTab !== 'network' && activeTab !== 'matrix' && activeTab !== 'catalog30' && (
+        {activeTab !== 'network' && activeTab !== 'matrix' && activeTab !== 'yearly' && activeTab !== 'catalog30' && (
           <FilterBar
             selectedCenter={selectedCenter}
             onChangeCenter={setSelectedCenter}
@@ -83,6 +84,13 @@ export function App() {
             loading={loadingOverview}
             onSelectIndicator={handleSelectIndicator}
             onSelectCenter={handleSelectCenterFromRanking}
+            onNavigateToOutreach={handleNavigateToOutreach}
+          />
+        )}
+
+        {/* Tab: Multi-Year Comparison Table (FY 2567-2570) */}
+        {activeTab === 'yearly' && (
+          <YearlyComparisonPage
             onNavigateToOutreach={handleNavigateToOutreach}
           />
         )}

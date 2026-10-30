@@ -8,7 +8,8 @@ import {
   Network, 
   Activity,
   Layers,
-  CalendarDays
+  CalendarDays,
+  TrendingUp
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -20,6 +21,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab, onlineCount = 10 }) => {
   const navItems = [
     { id: 'overview', label: 'ภาพรวมและเป้าหมาย', icon: BarChart3 },
+    { id: 'yearly', label: 'เปรียบเทียบรายปี (2567-2570)', icon: TrendingUp },
     { id: 'matrix', label: 'ตารางแทร็กกิ้ง 12 เดือน', icon: CalendarDays },
     { id: 'indicator', label: 'เจาะลึกตัวชี้วัด', icon: Target },
     { id: 'catalog30', label: 'สิทธิประโยชน์ 30 รายการ (2569-2570)', icon: Layers },

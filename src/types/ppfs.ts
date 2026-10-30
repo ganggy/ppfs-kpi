@@ -188,3 +188,57 @@ export interface MonthlyMatrixData {
     totalRevenue: number;
   };
 }
+
+export interface YearlyComparisonRow {
+  indicatorId: string;
+  code: string;
+  title: string;
+  shortName: string;
+  category: PPFSCategory;
+  targetGroupDesc: string;
+  unitPrice: number;
+  targetCount: number;
+  years: {
+    fy2567: number;
+    fy2568: number;
+    fy2569: number;
+    fy2570: number;
+  };
+  revenues: {
+    rev2567: number;
+    rev2568: number;
+    rev2569: number;
+    rev2570: number;
+  };
+  changes: {
+    diff68_67: number;
+    pct68_67: number | null;
+    diff69_68: number;
+    pct69_68: number | null;
+    diff70_69: number;
+    pct70_69: number | null;
+  };
+}
+
+export interface YearlyComparisonData {
+  selectedCenter: string;
+  selectedCenterName: string;
+  rows: YearlyComparisonRow[];
+  totals: {
+    targetCount: number;
+    fy2567: number;
+    fy2568: number;
+    fy2569: number;
+    fy2570: number;
+    rev2567: number;
+    rev2568: number;
+    rev2569: number;
+    rev2570: number;
+    diff68_67: number;
+    pct68_67: number | null;
+    diff69_68: number;
+    pct69_68: number | null;
+    diff70_69: number;
+    pct70_69: number | null;
+  };
+}

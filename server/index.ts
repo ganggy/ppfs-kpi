@@ -181,6 +181,37 @@ app.get('/api/ppfs/export-monthly-matrix', async (req, res) => {
   }
 });
 
+// Multi-Year Comparison Table across FY 2567, 2568, 2569, 2570
+app.get('/api/ppfs/yearly-comparison', async (req, res) => {
+  try {
+    const { centerId } = req.query;
+    const data = await PPFSEngine.getYearlyComparison({
+      centerId: centerId as string,
+    });
+    res.json({ success: true, data });
+  } catch (err: any) {
+    console.error('Error in /api/ppfs/yearly-comparison:', err);
+    res.status(500).json({ success: false, error: err?.message || 'Server error' });
+  }
+});
+
+// Export Multi-Year Comparison Table to Excel
+app.get('/api/ppfs/export-yearly-comparison', async (req, res) => {
+  try {
+    const { centerId } = req.query;
+    const buffer = await PPFSEngine.exportYearlyComparisonExcel({
+      centerId: centerId as string,
+    });
+    const filename = `PPFS_Yearly_Comparison_2567-2570_${centerId || 'ALL'}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(buffer);
+  } catch (err: any) {
+    console.error('Error exporting yearly comparison excel:', err);
+    res.status(500).send(err?.message || 'Export failed');
+  }
+});
+
 // Network PCU Database Health Status
 app.get('/api/network/status', async (req, res) => {
   try {
