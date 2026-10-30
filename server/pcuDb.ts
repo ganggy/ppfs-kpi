@@ -125,7 +125,7 @@ export const getPcuPool = (hospcode: string): mysql.Pool | null => {
     waitForConnections: true,
     connectionLimit: 5,
     queueLimit: 0,
-    connectTimeout: 5000,
+    connectTimeout: 1500,
     charset: 'utf8mb4',
   });
 
