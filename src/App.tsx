@@ -154,10 +154,10 @@ export function App() {
       }}>
         <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div>
-            <strong>PPFS KPI & Network Monitoring Platform</strong> • CUP โรงพยาบาลโคกศรีสุพรรณ
+            <strong>PPFS KPI & Network Monitoring Platform (30 รายการ สปสช.)</strong> • CUP โรงพยาบาลโคกศรีสุพรรณ
           </div>
           <div>
-            เชื่อมต่อ HOSxP 192.168.2.254 • ระบบวิเคราะห์และสนับสนุนการบริหารจัดการงาน PPFS
+            Server 192.168.2.202:3600 • เชื่อมต่อ HOSxP 192.168.2.254 • ระบบวิเคราะห์และบริหารจัดการกองทุน PPFS
           </div>
         </div>
       </footer>
