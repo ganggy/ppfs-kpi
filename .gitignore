@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+server/check*.ts
+server/test*.ts
+server/verify*.ts
