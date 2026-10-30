@@ -42,8 +42,8 @@ export const OutreachPage: React.FC<OutreachPageProps> = ({
     api.getIndicators().then(setIndicators).catch(console.error);
   }, []);
 
-  // Fetch patients
-  const fetchList = () => {
+  // Fetch patients for a specific page
+  const fetchList = (targetPage: number = page) => {
     if (!indicatorId) return;
     setLoading(true);
     api.getPatients({
@@ -54,7 +54,7 @@ export const OutreachPage: React.FC<OutreachPageProps> = ({
       startDate,
       endDate,
       limit: pageSize,
-      offset: (page - 1) * pageSize,
+      offset: (targetPage - 1) * pageSize,
     })
       .then((res) => {
         setPatients(res.list);
@@ -66,13 +66,18 @@ export const OutreachPage: React.FC<OutreachPageProps> = ({
 
   useEffect(() => {
     setPage(1);
-    fetchList();
+    fetchList(1);
   }, [indicatorId, status, selectedCenter, startDate, endDate]);
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    fetchList(newPage);
+  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    fetchList();
+    fetchList(1);
   };
 
   const handleExportExcel = () => {
@@ -246,7 +251,7 @@ export const OutreachPage: React.FC<OutreachPageProps> = ({
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 disabled={page <= 1}
-                onClick={() => setPage(page - 1)}
+                onClick={() => handlePageChange(page - 1)}
                 className="btn btn-secondary"
                 style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}
               >
@@ -257,7 +262,7 @@ export const OutreachPage: React.FC<OutreachPageProps> = ({
               </span>
               <button
                 disabled={page >= Math.ceil(totalCount / pageSize)}
-                onClick={() => setPage(page + 1)}
+                onClick={() => handlePageChange(page + 1)}
                 className="btn btn-secondary"
                 style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}
               >
