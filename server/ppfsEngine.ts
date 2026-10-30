@@ -177,8 +177,8 @@ function applyNhsoEligibilityConditions(
     params.push(...rules.excludeChronicClinics);
   }
 
-  // 5. เช็คระยะห่างการตรวจซ้ำข้ามปีงบประมาณ (เช่น HPV DNA ทุก 5 ปี หักผู้ที่ตรวจไปแล้วใน 4 ปีก่อนหน้า, FIT Test ทุก 2 ปี)
-  if (options?.isDenominator && options.startDate && rules?.excludePriorIntervalYears && rules.excludePriorIntervalYears > 0) {
+  // 5. เช็คระยะห่างการตรวจซ้ำข้ามปีงบประมาณ (เช่น HPV DNA ทุก 5 ปี หักผู้ที่ตรวจไปแล้วใน 4 ปีก่อนหน้า, FIT Test ทุก 2 ปี หักผู้ที่ตรวจไปแล้วใน 1 ปีก่อนหน้า)
+  if (options?.startDate && rules?.excludePriorIntervalYears && rules.excludePriorIntervalYears > 0) {
     const icdPlaceholders = indicator.icd10Codes.map(() => '?').join(',');
     conditions.push(
       `p.hn NOT IN (
@@ -189,6 +189,19 @@ function applyNhsoEligibilityConditions(
       )`
     );
     params.push(options.startDate, rules.excludePriorIntervalYears, options.startDate, ...indicator.icd10Codes);
+
+    if (rules.ppSpecialTypeIds && rules.ppSpecialTypeIds.length > 0) {
+      const ppPlaceholders = rules.ppSpecialTypeIds.map(() => '?').join(',');
+      conditions.push(
+        `p.hn NOT IN (
+          SELECT o3.hn FROM ovst o3
+          INNER JOIN pp_special pp3 ON pp3.vn = o3.vn
+          WHERE o3.vstdate BETWEEN DATE_SUB(?, INTERVAL ? YEAR) AND DATE_SUB(?, INTERVAL 1 DAY)
+            AND pp3.pp_special_type_id IN (${ppPlaceholders})
+        )`
+      );
+      params.push(options.startDate, rules.excludePriorIntervalYears, options.startDate, ...rules.ppSpecialTypeIds);
+    }
   }
 }
 
@@ -236,6 +249,7 @@ function buildNumeratorWhere(
 
   applyNhsoEligibilityConditions(indicator, 'o.vstdate', baseConditions, baseParams, {
     isDenominator: false,
+    startDate,
   });
 
   applyFacilityFilter(centerId, baseConditions, baseParams);
@@ -682,15 +696,32 @@ export class PPFSEngine {
       searchParams.push(q, q, q, q);
     }
 
-    // Subquery for served HNs in period
+    // Subquery for served HNs in period (including both ovstdiag ICD-10 and pp_special if applicable)
     const icdPlaceholders = ind.icd10Codes.map(() => '?').join(',');
-    const servedSubquery = `
+    const ppIds = ind.nhsoRules?.ppSpecialTypeIds;
+    let servedSubquery = `
       SELECT DISTINCT o.hn 
       FROM ovst o 
       INNER JOIN ovstdiag od ON od.vn = o.vn 
       WHERE o.vstdate BETWEEN ? AND ? AND od.icd10 IN (${icdPlaceholders})
     `;
-    const servedParams = [startDate, endDate, ...ind.icd10Codes];
+    const servedParams: any[] = [startDate, endDate, ...ind.icd10Codes];
+
+    if (ppIds && ppIds.length > 0) {
+      const ppPlaceholders = ppIds.map(() => '?').join(',');
+      servedSubquery = `
+        SELECT o.hn 
+        FROM ovst o 
+        INNER JOIN ovstdiag od ON od.vn = o.vn 
+        WHERE o.vstdate BETWEEN ? AND ? AND od.icd10 IN (${icdPlaceholders})
+        UNION
+        SELECT o.hn
+        FROM ovst o
+        INNER JOIN pp_special pp ON pp.vn = o.vn
+        WHERE o.vstdate BETWEEN ? AND ? AND pp.pp_special_type_id IN (${ppPlaceholders})
+      `;
+      servedParams.push(startDate, endDate, ...ppIds);
+    }
 
     let filterStatusSql = '';
     if (status === 'unserved') {
@@ -713,6 +744,35 @@ export class PPFSEngine {
     );
     const total = Number(countRows[0]?.total || 0);
 
+    // Build serv join subquery supporting pp_special as well
+    let servJoinSql = `
+      SELECT o.hn, MAX(o.vstdate) as vstdate, MAX(od.icd10) as icd10
+      FROM ovst o
+      INNER JOIN ovstdiag od ON od.vn = o.vn
+      WHERE o.vstdate BETWEEN ? AND ? AND od.icd10 IN (${icdPlaceholders})
+      GROUP BY o.hn
+    `;
+    const servJoinParams: any[] = [startDate, endDate, ...ind.icd10Codes];
+
+    if (ppIds && ppIds.length > 0) {
+      const ppPlaceholders = ppIds.map(() => '?').join(',');
+      servJoinSql = `
+        SELECT hn, MAX(vstdate) as vstdate, MAX(code) as icd10 FROM (
+          SELECT o.hn, o.vstdate, od.icd10 as code
+          FROM ovst o
+          INNER JOIN ovstdiag od ON od.vn = o.vn
+          WHERE o.vstdate BETWEEN ? AND ? AND od.icd10 IN (${icdPlaceholders})
+          UNION ALL
+          SELECT o.hn, o.vstdate, CONCAT('PP:', pp.pp_special_type_id) as code
+          FROM ovst o
+          INNER JOIN pp_special pp ON pp.vn = o.vn
+          WHERE o.vstdate BETWEEN ? AND ? AND pp.pp_special_type_id IN (${ppPlaceholders})
+        ) u_serv
+        GROUP BY hn
+      `;
+      servJoinParams.push(startDate, endDate, ...ppIds);
+    }
+
     // List query
     const [rows]: any = await pool.query(
       `SELECT 
@@ -730,17 +790,11 @@ export class PPFSEngine {
          serv.icd10 as last_icd10
        FROM patient p
        LEFT JOIN thaiaddress t ON t.chwpart=p.chwpart AND t.amppart=p.amppart AND t.tmbpart=p.tmbpart
-       LEFT JOIN (
-         SELECT o.hn, MAX(o.vstdate) as vstdate, MAX(od.icd10) as icd10
-         FROM ovst o
-         INNER JOIN ovstdiag od ON od.vn = o.vn
-         WHERE o.vstdate BETWEEN ? AND ? AND od.icd10 IN (${icdPlaceholders})
-         GROUP BY o.hn
-       ) serv ON serv.hn = p.hn
+       LEFT JOIN (${servJoinSql}) serv ON serv.hn = p.hn
        WHERE ${denom.whereSql} ${searchSql} ${filterStatusSql}
        ORDER BY CAST(p.moopart AS UNSIGNED) ASC, p.addrpart ASC
        LIMIT ? OFFSET ?`,
-      [startDate, endDate, ...ind.icd10Codes, ...allParams, limit, offset]
+      [...servJoinParams, ...allParams, limit, offset]
     );
 
     const typeAreaDescMap: Record<string, string> = {
@@ -940,22 +994,40 @@ export class PPFSEngine {
         [startDate, endDate]
       ),
 
-      // 6. Duplicate checks within interval
+      // 6. Repeat screening within interval (FIT Test < 2 years or HPV DNA < 5 years)
       pool.query(
         `SELECT 
            o.hn, p.cid, CONCAT(p.fname, ' ', p.lname) as pt_name,
            p.sex, TIMESTAMPDIFF(YEAR, p.birthday, o.vstdate) as age,
            o.vstdate, od.icd10,
-           'บันทึกบริการคัดกรองซ้ำซ้อนภายในระยะเวลาที่ไม่ถึงเกณฑ์' as issue_reason,
-           100 as potential_loss
+           CASE
+             WHEN od.icd10 = 'Z121' THEN '[PP02] ตรวจ FIT Test ซ้ำภายใน 2 ปี (เคยรับการตรวจแล้วในปีก่อนหน้า สปสช. ไม่จ่ายซ้ำ)'
+             ELSE '[PP01] ตรวจคัดกรองมะเร็งปากมดลูกซ้ำภายใน 5 ปี (เคยรับการตรวจแล้วในช่วง 4 ปีก่อนหน้า)'
+           END as issue_reason,
+           CASE WHEN od.icd10 = 'Z121' THEN 100 ELSE 400 END as potential_loss
          FROM ovst o
          INNER JOIN ovstdiag od ON od.vn = o.vn
          INNER JOIN patient p ON p.hn = o.hn
-         WHERE o.vstdate BETWEEN ? AND ? AND od.icd10 IN ('Z121', 'Z124')
-         GROUP BY o.hn, o.vstdate, p.cid, p.fname, p.lname, p.sex, p.birthday, od.icd10
-         HAVING COUNT(*) > 1
-         LIMIT 20`,
-        [startDate, endDate]
+         WHERE o.vstdate BETWEEN ? AND ?
+           AND (
+             (od.icd10 = 'Z121' AND EXISTS (
+               SELECT 1 FROM ovst o2
+               INNER JOIN ovstdiag od2 ON od2.vn = o2.vn
+               WHERE o2.hn = o.hn
+                 AND o2.vstdate BETWEEN DATE_SUB(?, INTERVAL 1 YEAR) AND DATE_SUB(?, INTERVAL 1 DAY)
+                 AND od2.icd10 = 'Z121'
+             ))
+             OR
+             (od.icd10 IN ('Z124', 'Z014') AND EXISTS (
+               SELECT 1 FROM ovst o3
+               INNER JOIN ovstdiag od3 ON od3.vn = o3.vn
+               WHERE o3.hn = o.hn
+                 AND o3.vstdate BETWEEN DATE_SUB(?, INTERVAL 4 YEAR) AND DATE_SUB(?, INTERVAL 1 DAY)
+                 AND od3.icd10 IN ('Z124', 'Z014')
+             ))
+           )
+         LIMIT 25`,
+        [startDate, endDate, startDate, startDate, startDate, startDate]
       ),
     ]);
 
@@ -1020,19 +1092,45 @@ export class PPFSEngine {
       const ratio = getCalibrationRatio(centerId);
       const prevalenceFactor = ind.nhsoRules?.targetPrevalenceFactor ?? 1.0;
 
-      // 2. Monthly Numerator
+      // 2. Monthly Numerator (supporting both ovstdiag ICD-10 and pp_special)
       const num = buildNumeratorWhere(ind, startDate, endDate, centerId);
-      const [mRows]: any = await pool.query(
-        `SELECT 
-           DATE_FORMAT(o.vstdate, '%m') as m,
-           COUNT(DISTINCT p.hn) as pt_count
-         FROM ovst o
-         INNER JOIN ovstdiag od ON od.vn = o.vn
-         INNER JOIN patient p ON p.hn = o.hn
-         WHERE ${num.whereSql}
-         GROUP BY DATE_FORMAT(o.vstdate, '%m')`,
-        num.params
-      );
+      const ppIds = ind.nhsoRules?.ppSpecialTypeIds;
+      let mRows: any[] = [];
+
+      if (ppIds && ppIds.length > 0) {
+        const ppPlaceholders = ppIds.map(() => '?').join(',');
+        const [res]: any = await pool.query(
+          `SELECT m, COUNT(DISTINCT hn) as pt_count FROM (
+             SELECT DATE_FORMAT(o.vstdate, '%m') as m, p.hn
+             FROM ovst o
+             INNER JOIN ovstdiag od ON od.vn = o.vn
+             INNER JOIN patient p ON p.hn = o.hn
+             WHERE ${num.whereSql}
+             UNION
+             SELECT DATE_FORMAT(o.vstdate, '%m') as m, p.hn
+             FROM ovst o
+             INNER JOIN pp_special pp ON pp.vn = o.vn
+             INNER JOIN patient p ON p.hn = o.hn
+             WHERE ${num.baseWhereSql} AND pp.pp_special_type_id IN (${ppPlaceholders})
+           ) combined_m
+           GROUP BY m`,
+          [...num.params, ...num.baseParams, ...ppIds]
+        );
+        mRows = res;
+      } else {
+        const [res]: any = await pool.query(
+          `SELECT 
+             DATE_FORMAT(o.vstdate, '%m') as m,
+             COUNT(DISTINCT p.hn) as pt_count
+           FROM ovst o
+           INNER JOIN ovstdiag od ON od.vn = o.vn
+           INNER JOIN patient p ON p.hn = o.hn
+           WHERE ${num.whereSql}
+           GROUP BY DATE_FORMAT(o.vstdate, '%m')`,
+          num.params
+        );
+        mRows = res;
+      }
 
       const monthMap: Record<string, number> = {};
       for (const r of mRows) {
