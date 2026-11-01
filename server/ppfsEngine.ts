@@ -1089,7 +1089,7 @@ export class PPFSEngine {
               pt.sex === '1'
                 ? '[PP01] ตรวจ HPV DNA ในผู้ป่วยเพศชาย (ผิดเงื่อนไข สปสช.)'
                 : `[PP01] อายุ ${age} ปี ไม่อยู่ในเกณฑ์ 30-59 ปี (HPV DNA)`,
-            potentialLoss: 400,
+            potentialLoss: 420,
           });
           continue;
         }
@@ -1103,7 +1103,7 @@ export class PPFSEngine {
             vstdate: v.vstdate,
             icd10: v.code,
             issue: '[PP01] ตรวจคัดกรองมะเร็งปากมดลูกซ้ำภายใน 5 ปี (เคยรับการตรวจแล้วในช่วง 4 ปีก่อนหน้า)',
-            potentialLoss: 400,
+            potentialLoss: 420,
           });
           continue;
         }
@@ -1121,7 +1121,7 @@ export class PPFSEngine {
             vstdate: v.vstdate,
             icd10: v.code,
             issue: `[PP02] อายุ ${age} ปี ไม่อยู่ในช่วง 50-70 ปีตามเกณฑ์คัดกรองมะเร็งลำไส้ (FIT Test)`,
-            potentialLoss: 100,
+            potentialLoss: 60,
           });
           continue;
         }
@@ -1135,7 +1135,7 @@ export class PPFSEngine {
             vstdate: v.vstdate,
             icd10: v.code,
             issue: '[PP02] ตรวจ FIT Test ซ้ำภายใน 2 ปี (เคยรับการตรวจแล้วในปีก่อนหน้า สปสช. ไม่จ่ายซ้ำ)',
-            potentialLoss: 100,
+            potentialLoss: 60,
           });
           continue;
         }
@@ -1152,7 +1152,7 @@ export class PPFSEngine {
           vstdate: v.vstdate,
           icd10: v.code,
           issue: '[PP03] ลงรหัสคัดกรองเบาหวาน (Z131) ในผู้ป่วยที่ขึ้นทะเบียนคลินิกเบาหวานอยู่แล้ว (สปสช. ตัดจ่าย)',
-          potentialLoss: 100,
+          potentialLoss: 40,
         });
         continue;
       }
