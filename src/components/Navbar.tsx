@@ -21,15 +21,15 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab, onlineCount = 10 }) => {
   const navItems = [
-    { id: 'overview', label: 'ภาพรวมและเป้าหมาย', icon: BarChart3 },
-    { id: 'yearly', label: 'เปรียบเทียบรายปี (2567-2570)', icon: TrendingUp },
-    { id: 'matrix', label: 'ตารางแทร็กกิ้ง 12 เดือน', icon: CalendarDays },
+    { id: 'overview', label: 'ภาพรวม', icon: BarChart3 },
+    { id: 'yearly', label: 'เปรียบเทียบรายปี', icon: TrendingUp },
+    { id: 'matrix', label: 'ตาราง 12 เดือน', icon: CalendarDays },
     { id: 'indicator', label: 'เจาะลึกตัวชี้วัด', icon: Target },
-    { id: 'catalog30', label: 'สิทธิประโยชน์ 30 รายการ (2569-2570)', icon: Layers },
-    { id: 'outreach', label: 'บัญชีรายชื่อคนไข้ (Call List)', icon: Users },
-    { id: 'revenue', label: 'ประมาณการรายรับ สปสช.', icon: DollarSign },
-    { id: 'audit', label: 'ตรวจข้อมูลก่อนส่งเบิก', icon: ShieldAlert },
-    { id: 'settings', label: 'ตั้งค่ากองทุน & อัตราจ่าย', icon: Sliders },
+    { id: 'catalog30', label: 'สิทธิ 30 รายการ', icon: Layers },
+    { id: 'outreach', label: 'Call List คนไข้', icon: Users },
+    { id: 'revenue', label: 'ประมาณการรายรับ', icon: DollarSign },
+    { id: 'audit', label: 'ตรวจก่อนส่งเบิก', icon: ShieldAlert },
+    { id: 'settings', label: '⚙️ ตั้งค่ากองทุน & อัตราจ่าย', icon: Sliders, highlight: true },
     { id: 'network', label: 'เครือข่าย รพ.สต.', icon: Network },
   ];
 
@@ -37,7 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab, onlineCo
     <header style={{ backgroundColor: '#0f172a', color: 'white', position: 'sticky', top: 0, zIndex: 50, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
       {/* Top Banner */}
       <div style={{ borderBottom: '1px solid #1e293b', padding: '0.65rem 1.5rem' }}>
-        <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{ 
               backgroundColor: '#0284c7', 
@@ -61,7 +61,30 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab, onlineCo
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {/* Direct Settings Button on Top Bar */}
+            <button
+              onClick={() => onSelectTab('settings')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                backgroundColor: activeTab === 'settings' ? '#0284c7' : '#1e293b',
+                color: activeTab === 'settings' ? 'white' : '#38bdf8',
+                border: activeTab === 'settings' ? '1px solid #38bdf8' : '1px solid #334155',
+                padding: '0.4rem 0.85rem',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: activeTab === 'settings' ? '0 0 10px rgba(2, 132, 199, 0.5)' : 'none',
+              }}
+            >
+              <Sliders size={15} color={activeTab === 'settings' ? 'white' : '#38bdf8'} />
+              <span>⚙️ ตั้งค่ากองทุน & อัตราจ่าย</span>
+            </button>
+
             {/* Live Status Badge */}
             <div style={{ 
               display: 'flex', 
@@ -78,14 +101,14 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab, onlineCo
               <span style={{ color: '#64748b' }}>|</span>
               <span style={{ color: '#38bdf8' }}>เครือข่าย 6 แห่ง</span>
               <span style={{ color: '#64748b' }}>|</span>
-              <span style={{ color: '#38bdf8', fontWeight: 600 }}>ประชากรในเขต (Type 1&3): 26,080 คน</span>
+              <span style={{ color: '#38bdf8', fontWeight: 600 }}>ประชากรในเขต: 26,080 คน</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ padding: '0 1.5rem', maxWidth: '1440px', margin: '0 auto', display: 'flex', gap: '0.5rem', overflowX: 'auto' }}>
+      <div style={{ padding: '0 1.5rem', maxWidth: '1440px', margin: '0 auto', display: 'flex', gap: '0.35rem', overflowX: 'auto', whiteSpace: 'nowrap' }}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -94,23 +117,23 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab, onlineCo
               key={item.id}
               onClick={() => onSelectTab(item.id)}
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.75rem 1rem',
+                gap: '0.4rem',
+                padding: '0.65rem 0.85rem',
                 border: 'none',
                 background: 'transparent',
-                color: isActive ? '#38bdf8' : '#94a3b8',
+                color: isActive ? '#38bdf8' : (item as any).highlight ? '#fbbf24' : '#94a3b8',
                 borderBottom: isActive ? '3px solid #38bdf8' : '3px solid transparent',
-                fontWeight: isActive ? 600 : 500,
-                fontSize: '0.875rem',
+                fontWeight: isActive ? 700 : (item as any).highlight ? 600 : 500,
+                fontSize: '0.825rem',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
-                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               <Icon size={16} />
-              {item.label}
+              <span>{item.label}</span>
             </button>
           );
         })}

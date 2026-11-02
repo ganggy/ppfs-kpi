@@ -86,6 +86,7 @@ export function App() {
             onSelectIndicator={handleSelectIndicator}
             onSelectCenter={handleSelectCenterFromRanking}
             onNavigateToOutreach={handleNavigateToOutreach}
+            onNavigateToSettings={() => setActiveTab('settings')}
           />
         )}
 

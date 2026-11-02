@@ -18,6 +18,7 @@ interface OverviewPageProps {
   onSelectIndicator: (indicatorId: string) => void;
   onSelectCenter: (centerId: string) => void;
   onNavigateToOutreach: (indicatorId: string) => void;
+  onNavigateToSettings?: () => void;
 }
 
 export const OverviewPage: React.FC<OverviewPageProps> = ({
@@ -26,6 +27,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   onSelectIndicator,
   onSelectCenter,
   onNavigateToOutreach,
+  onNavigateToSettings,
 }) => {
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
 
@@ -186,9 +188,32 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               </p>
             </div>
 
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              {onNavigateToSettings && (
+                <button
+                  onClick={onNavigateToSettings}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    padding: '0.45rem 0.85rem',
+                    borderRadius: '8px',
+                    border: '1px solid #bfdbfe',
+                    backgroundColor: '#eff6ff',
+                    color: '#0284c7',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(2, 132, 199, 0.08)',
+                  }}
+                >
+                  ⚙️ ตั้งค่ากองทุน & อัตราจ่าย
+                </button>
+              )}
+
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
               style={{
                 padding: '0.45rem 0.75rem',
                 borderRadius: '8px',
@@ -216,6 +241,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               <option value="MENTAL">หมวดสุขภาพจิต (MENTAL)</option>
             </select>
           </div>
+        </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '880px', overflowY: 'auto', paddingRight: '0.25rem' }}>
             {filteredIndicators.map((item) => {
