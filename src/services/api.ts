@@ -139,4 +139,32 @@ export const api = {
     if (centerId) query.set('centerId', centerId);
     return `${API_BASE}/ppfs/export-yearly-comparison?${query.toString()}`;
   },
+
+  // Get PPFS Indicator Settings (rates & enabled state)
+  async getSettings(): Promise<{ data: Record<string, any>; list: any[] }> {
+    const res = await fetch(`${API_BASE}/ppfs/settings`);
+    if (!res.ok) throw new Error('Failed to load PPFS settings');
+    const json = await res.json();
+    return { data: json.data, list: json.list };
+  },
+
+  // Save PPFS Indicator Settings
+  async saveSettings(settings: Record<string, any>): Promise<any> {
+    const res = await fetch(`${API_BASE}/ppfs/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings }),
+    });
+    if (!res.ok) throw new Error('Failed to save PPFS settings');
+    return res.json();
+  },
+
+  // Reset PPFS Indicator Settings to NHSO defaults
+  async resetSettings(): Promise<any> {
+    const res = await fetch(`${API_BASE}/ppfs/settings/reset`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to reset PPFS settings');
+    return res.json();
+  },
 };

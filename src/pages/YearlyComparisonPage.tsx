@@ -511,20 +511,25 @@ export const YearlyComparisonPage: React.FC<YearlyComparisonPageProps> = ({
                           boxShadow: '2px 0 5px rgba(0,0,0,0.03)',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                           <span
                             style={{
                               fontSize: '0.7rem',
                               fontWeight: 700,
-                              color: '#0284c7',
-                              backgroundColor: '#e0f2fe',
+                              color: r.enabled === false ? '#78716c' : '#0284c7',
+                              backgroundColor: r.enabled === false ? '#e7e5e4' : '#e0f2fe',
                               padding: '0.1rem 0.35rem',
                               borderRadius: '4px',
                             }}
                           >
                             {r.code}
                           </span>
-                          <span style={{ fontWeight: 600, color: '#0f172a' }}>{r.shortName}</span>
+                          <span style={{ fontWeight: 600, color: r.enabled === false ? '#78716c' : '#0f172a' }}>{r.shortName}</span>
+                          {r.enabled === false && (
+                            <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#b45309', backgroundColor: '#fef3c7', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                              ⚠️ {r.disabledReason || 'ศักยภาพไม่เพียงพอ'}
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.15rem' }}>
                           อัตราจ่าย ฿{r.unitPrice}/คน • {r.targetGroupDesc}

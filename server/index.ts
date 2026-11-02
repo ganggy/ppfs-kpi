@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { PPFSEngine } from './ppfsEngine.js';
 import { PPFS_INDICATORS, getIndicatorById } from './ppfsIndicators.js';
+import { PPFSSettingsService } from './ppfsSettingsService.js';
 import { checkAllPcuHealth, checkPcuHealth, PCU_REGISTRY } from './pcuDb.js';
 import { testConnection } from './db.js';
 
@@ -36,9 +37,48 @@ app.get('/api/ppfs/centers', (req, res) => {
   res.json({ success: true, data: centers });
 });
 
-// PPFS Indicators Catalog
+// PPFS Indicators Catalog (returns effective unit prices & enabled states)
 app.get('/api/ppfs/indicators', (req, res) => {
-  res.json({ success: true, data: PPFS_INDICATORS });
+  const indicators = PPFSSettingsService.getEffectiveIndicators(false);
+  res.json({ success: true, data: indicators });
+});
+
+// PPFS Indicators Settings Management
+app.get('/api/ppfs/settings', (req, res) => {
+  try {
+    const settings = PPFSSettingsService.getSettings();
+    const list = Object.values(settings);
+    res.json({ success: true, data: settings, list });
+  } catch (err: any) {
+    console.error('Error in GET /api/ppfs/settings:', err);
+    res.status(500).json({ success: false, error: err?.message || 'Failed to fetch settings' });
+  }
+});
+
+app.post('/api/ppfs/settings', (req, res) => {
+  try {
+    const { settings } = req.body;
+    if (!settings || typeof settings !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid settings payload' });
+    }
+    const updated = PPFSSettingsService.saveSettings(settings);
+    const list = Object.values(updated);
+    res.json({ success: true, message: 'บันทึกการตั้งค่าเรียบร้อยแล้ว', data: updated, list });
+  } catch (err: any) {
+    console.error('Error in POST /api/ppfs/settings:', err);
+    res.status(500).json({ success: false, error: err?.message || 'Failed to save settings' });
+  }
+});
+
+app.post('/api/ppfs/settings/reset', (req, res) => {
+  try {
+    const defaults = PPFSSettingsService.resetToDefaults();
+    const list = Object.values(defaults);
+    res.json({ success: true, message: 'รีเซ็ตเป็นค่าเริ่มต้นตามประกาศ สปสช. เรียบร้อยแล้ว', data: defaults, list });
+  } catch (err: any) {
+    console.error('Error in POST /api/ppfs/settings/reset:', err);
+    res.status(500).json({ success: false, error: err?.message || 'Failed to reset settings' });
+  }
 });
 
 // Overview KPI & League Table

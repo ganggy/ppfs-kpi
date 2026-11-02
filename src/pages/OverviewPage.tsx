@@ -44,6 +44,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
   const filteredIndicators = indicators.filter((item) => {
     if (categoryFilter === 'ALL') return true;
+    if (categoryFilter === 'ACTIVE_ONLY') return item.indicator.enabled !== false && (item as any).enabled !== false;
+    if (categoryFilter === 'DISABLED_ONLY') return item.indicator.enabled === false || (item as any).enabled === false;
     if (categoryFilter === 'CORE10') {
       const num = parseInt(item.indicator.code.replace('PP', ''), 10);
       return num >= 1 && num <= 10;
@@ -199,6 +201,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               }}
             >
               <option value="ALL">แสดงทั้งหมด ({totals.indicatorsCount || 30} รายการ)</option>
+              <option value="ACTIVE_ONLY">เฉพาะที่เปิดใช้งาน (Active)</option>
+              <option value="DISABLED_ONLY">เฉพาะที่ปิดใช้งาน (ศักยภาพไม่พอ)</option>
               <option value="CORE10">เฉพาะ 10 ตัวชี้วัดหลัก (PP01-PP10)</option>
               <option value="NEW2569">รายการใหม่/ปรับปรุง ปี 69-70 (*)</option>
               <option value="CANCER">หมวดคัดกรองมะเร็ง (CANCER)</option>
@@ -216,6 +220,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '880px', overflowY: 'auto', paddingRight: '0.25rem' }}>
             {filteredIndicators.map((item) => {
               const ind = item.indicator;
+              const isItemDisabled = ind.enabled === false || (item as any).enabled === false;
               const fillClass = item.status === 'ACHIEVED' ? 'fill-achieved' : item.status === 'ON_TRACK' ? 'fill-on-track' : 'fill-behind';
               const badgeClass = item.status === 'ACHIEVED' ? 'badge-achieved' : item.status === 'ON_TRACK' ? 'badge-on-track' : 'badge-behind';
               const statusText = item.status === 'ACHIEVED' ? 'บรรลุเป้าหมาย' : item.status === 'ON_TRACK' ? 'กำลังดำเนินการ' : 'ต่ำกว่าเป้าหมาย';
@@ -224,22 +229,27 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 <div
                   key={ind.id}
                   style={{
-                    border: '1px solid #e2e8f0',
+                    border: isItemDisabled ? '1px dashed #fcd34d' : '1px solid #e2e8f0',
                     borderRadius: '10px',
                     padding: '0.9rem',
-                    backgroundColor: '#ffffff',
+                    backgroundColor: isItemDisabled ? '#fffdf7' : '#ffffff',
                     transition: 'all 0.15s ease',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284c7', backgroundColor: '#e0f2fe', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: isItemDisabled ? '#78716c' : '#0284c7', backgroundColor: isItemDisabled ? '#e7e5e4' : '#e0f2fe', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
                           {ind.code}
                         </span>
-                        <h4 style={{ fontSize: '0.925rem', fontWeight: 600, color: '#0f172a' }}>
+                        <h4 style={{ fontSize: '0.925rem', fontWeight: 600, color: isItemDisabled ? '#78716c' : '#0f172a' }}>
                           {ind.shortName}
                         </h4>
+                        {isItemDisabled && (
+                          <span style={{ fontSize: '0.7rem', color: '#b45309', backgroundColor: '#fef3c7', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600 }}>
+                            ⚠️ ปิดใช้งาน ({ind.disabledReason || (item as any).disabledReason || 'ศักยภาพไม่เพียงพอ'})
+                          </span>
+                        )}
                       </div>
                       <p style={{ fontSize: '0.75rem', color: '#64748b' }}>
                         กลุ่มเป้าหมาย: {ind.targetGroupDesc} • อัตราจ่าย ฿{ind.unitPrice}/คน
@@ -247,12 +257,20 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     </div>
 
                     <div style={{ textAlign: 'right' }}>
-                      <span className={`badge ${badgeClass}`} style={{ fontSize: '0.7rem' }}>
-                        {statusText}
-                      </span>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
-                        เกณฑ์ สปสช. {ind.nhsoGoalPercent}%
-                      </div>
+                      {isItemDisabled ? (
+                        <span style={{ fontSize: '0.7rem', color: '#92400e', fontWeight: 600, backgroundColor: '#fef3c7', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+                          ไม่รวมในเป้าหมายรวม
+                        </span>
+                      ) : (
+                        <>
+                          <span className={`badge ${badgeClass}`} style={{ fontSize: '0.7rem' }}>
+                            {statusText}
+                          </span>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
+                            เกณฑ์ สปสช. {ind.nhsoGoalPercent}%
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
 

@@ -1,5 +1,6 @@
 import { pool } from './db.js';
 import { PPFS_INDICATORS, PPFSIndicator, getIndicatorById } from './ppfsIndicators.js';
+import { PPFSSettingsService } from './ppfsSettingsService.js';
 import { PCU_REGISTRY } from './pcuDb.js';
 import * as XLSX from 'xlsx';
 
@@ -18,6 +19,8 @@ export interface CenterKpiSummary {
 
 export interface IndicatorSummary {
   indicator: PPFSIndicator;
+  enabled?: boolean;
+  disabledReason?: string;
   targetCount: number;
   servedCount: number;
   coveragePercent: number;
@@ -657,8 +660,9 @@ export class PPFSEngine {
     let totalActualRev = 0;
 
     const ratio = getCalibrationRatio(centerId);
+    const effectiveIndicators = PPFSSettingsService.getEffectiveIndicators(false);
 
-    const indicatorsResult: IndicatorSummary[] = PPFS_INDICATORS.map((ind) => {
+    const indicatorsResult: IndicatorSummary[] = effectiveIndicators.map((ind) => {
       const rawTargetCount = computeRawTargetCount(store, ind, centerId, startDate);
       const servedCount = computeServedCountInPeriod(store, ind, startDate, endDate, centerId);
       const prevalenceFactor = ind.nhsoRules?.targetPrevalenceFactor ?? 1.0;
@@ -678,13 +682,18 @@ export class PPFSEngine {
         status = 'ON_TRACK';
       }
 
-      totalTarget += targetCount;
-      totalServed += servedCount;
-      totalTargetRev += targetRevenue;
-      totalActualRev += actualRevenue;
+      const isEnabled = ind.enabled !== false;
+      if (isEnabled) {
+        totalTarget += targetCount;
+        totalServed += servedCount;
+        totalTargetRev += targetRevenue;
+        totalActualRev += actualRevenue;
+      }
 
       return {
         indicator: ind,
+        enabled: isEnabled,
+        disabledReason: ind.disabledReason || '',
         targetCount,
         servedCount,
         coveragePercent,
@@ -772,7 +781,7 @@ export class PPFSEngine {
         targetRevenue: totalTargetRev,
         actualRevenue: totalActualRev,
         revenueGap: totalRevGap,
-        indicatorsCount: PPFS_INDICATORS.length,
+        indicatorsCount: effectiveIndicators.filter((i) => i.enabled !== false).length,
       },
       indicators: indicatorsResult,
       centerRankings,
@@ -785,7 +794,7 @@ export class PPFSEngine {
     options: { startDate?: string; endDate?: string; centerId?: string }
   ) {
     const store = await getStore();
-    const ind = getIndicatorById(indicatorId);
+    const ind = PPFSSettingsService.getEffectiveIndicatorById(indicatorId) || getIndicatorById(indicatorId);
     if (!ind) throw new Error(`Indicator '${indicatorId}' not found`);
 
     const today = new Date();
@@ -897,7 +906,7 @@ export class PPFSEngine {
     }
   ): Promise<{ list: PatientRecord[]; total: number }> {
     const store = await getStore();
-    const ind = getIndicatorById(indicatorId);
+    const ind = PPFSSettingsService.getEffectiveIndicatorById(indicatorId) || getIndicatorById(indicatorId);
     if (!ind) throw new Error(`Indicator '${indicatorId}' not found`);
 
     const status = options.status || 'unserved';
@@ -983,7 +992,7 @@ export class PPFSEngine {
     indicatorId: string,
     options: { status?: 'unserved' | 'served' | 'all'; centerId?: string }
   ): Promise<Buffer> {
-    const ind = getIndicatorById(indicatorId);
+    const ind = PPFSSettingsService.getEffectiveIndicatorById(indicatorId) || getIndicatorById(indicatorId);
     if (!ind) throw new Error(`Indicator '${indicatorId}' not found`);
 
     const result = await this.getTargetPatients(indicatorId, {
@@ -1211,8 +1220,9 @@ export class PPFSEngine {
     };
 
     const ratio = getCalibrationRatio(centerId);
+    const effectiveIndicators = PPFSSettingsService.getEffectiveIndicators(false);
 
-    const rows = PPFS_INDICATORS.map((ind) => {
+    const rows = effectiveIndicators.map((ind) => {
       const rawTargetCount = computeRawTargetCount(store, ind, centerId, startDate);
       const prevalenceFactor = ind.nhsoRules?.targetPrevalenceFactor ?? 1.0;
       const priorExcluded = buildPriorExcludedHnSet(store, ind, startDate);
@@ -1254,21 +1264,24 @@ export class PPFSEngine {
       const coveragePercent = targetCount > 0 ? Number(((totalServed / targetCount) * 100).toFixed(1)) : 0;
       const actualRevenue = totalServed * ind.unitPrice;
 
-      monthTotals.m10 += m10;
-      monthTotals.m11 += m11;
-      monthTotals.m12 += m12;
-      monthTotals.m01 += m01;
-      monthTotals.m02 += m02;
-      monthTotals.m03 += m03;
-      monthTotals.m04 += m04;
-      monthTotals.m05 += m05;
-      monthTotals.m06 += m06;
-      monthTotals.m07 += m07;
-      monthTotals.m08 += m08;
-      monthTotals.m09 += m09;
-      monthTotals.totalServed += totalServed;
-      monthTotals.totalTarget += targetCount;
-      monthTotals.totalRevenue += actualRevenue;
+      const isEnabled = ind.enabled !== false;
+      if (isEnabled) {
+        monthTotals.m10 += m10;
+        monthTotals.m11 += m11;
+        monthTotals.m12 += m12;
+        monthTotals.m01 += m01;
+        monthTotals.m02 += m02;
+        monthTotals.m03 += m03;
+        monthTotals.m04 += m04;
+        monthTotals.m05 += m05;
+        monthTotals.m06 += m06;
+        monthTotals.m07 += m07;
+        monthTotals.m08 += m08;
+        monthTotals.m09 += m09;
+        monthTotals.totalServed += totalServed;
+        monthTotals.totalTarget += targetCount;
+        monthTotals.totalRevenue += actualRevenue;
+      }
 
       return {
         indicatorId: ind.id,
@@ -1277,6 +1290,8 @@ export class PPFSEngine {
         shortName: ind.shortName,
         targetGroupDesc: ind.targetGroupDesc,
         unitPrice: ind.unitPrice,
+        enabled: isEnabled,
+        disabledReason: ind.disabledReason || '',
         targetCount,
         months: {
           m10, m11, m12,
@@ -1391,8 +1406,9 @@ export class PPFSEngine {
     };
 
     const ratio = getCalibrationRatio(centerId);
+    const effectiveIndicators = PPFSSettingsService.getEffectiveIndicators(false);
 
-    const rows = PPFS_INDICATORS.map((ind) => {
+    const rows = effectiveIndicators.map((ind) => {
       const rawTargetCount = computeRawTargetCount(store, ind, centerId, '2025-10-01');
       const prevalenceFactor = ind.nhsoRules?.targetPrevalenceFactor ?? 1.0;
 
@@ -1440,6 +1456,8 @@ export class PPFSEngine {
       const diff70_69 = fy2570 - fy2569;
       const pct70_69 = calcPct(fy2570, fy2569);
 
+      const isEnabled = ind.enabled !== false;
+
       return {
         indicatorId: ind.id,
         code: ind.code,
@@ -1448,6 +1466,8 @@ export class PPFSEngine {
         category: ind.category,
         targetGroupDesc: ind.targetGroupDesc,
         unitPrice: ind.unitPrice,
+        enabled: isEnabled,
+        disabledReason: ind.disabledReason || '',
         targetCount,
         years: {
           fy2567,
@@ -1491,15 +1511,17 @@ export class PPFSEngine {
     };
 
     for (const r of rows) {
-      totals.targetCount += r.targetCount;
-      totals.fy2567 += r.years.fy2567;
-      totals.fy2568 += r.years.fy2568;
-      totals.fy2569 += r.years.fy2569;
-      totals.fy2570 += r.years.fy2570;
-      totals.rev2567 += r.revenues.rev2567;
-      totals.rev2568 += r.revenues.rev2568;
-      totals.rev2569 += r.revenues.rev2569;
-      totals.rev2570 += r.revenues.rev2570;
+      if (r.enabled !== false) {
+        totals.targetCount += r.targetCount;
+        totals.fy2567 += r.years.fy2567;
+        totals.fy2568 += r.years.fy2568;
+        totals.fy2569 += r.years.fy2569;
+        totals.fy2570 += r.years.fy2570;
+        totals.rev2567 += r.revenues.rev2567;
+        totals.rev2568 += r.revenues.rev2568;
+        totals.rev2569 += r.revenues.rev2569;
+        totals.rev2570 += r.revenues.rev2570;
+      }
     }
 
     totals.diff68_67 = totals.fy2568 - totals.fy2567;

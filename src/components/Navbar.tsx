@@ -9,7 +9,8 @@ import {
   Activity,
   Layers,
   CalendarDays,
-  TrendingUp
+  TrendingUp,
+  Sliders
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -28,6 +29,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab, onlineCo
     { id: 'outreach', label: 'บัญชีรายชื่อคนไข้ (Call List)', icon: Users },
     { id: 'revenue', label: 'ประมาณการรายรับ สปสช.', icon: DollarSign },
     { id: 'audit', label: 'ตรวจข้อมูลก่อนส่งเบิก', icon: ShieldAlert },
+    { id: 'settings', label: 'ตั้งค่ากองทุน & อัตราจ่าย', icon: Sliders },
     { id: 'network', label: 'เครือข่าย รพ.สต.', icon: Network },
   ];
 

@@ -37,6 +37,9 @@ export interface PPFSIndicator {
   description: string;
   isNew2569?: boolean;
   cancelIn2570?: boolean;
+  enabled?: boolean;
+  disabledReason?: string;
+  defaultUnitPrice?: number;
   nhsoRules?: NHSOEligibilityRules;
   auditRules: {
     minAge?: number;
@@ -170,6 +173,8 @@ export interface MonthlyMatrixRow {
   shortName: string;
   targetGroupDesc: string;
   unitPrice: number;
+  enabled?: boolean;
+  disabledReason?: string;
   targetCount: number;
   months: MonthlyMatrixMonths;
   totalServed: number;
@@ -197,6 +202,8 @@ export interface YearlyComparisonRow {
   category: PPFSCategory;
   targetGroupDesc: string;
   unitPrice: number;
+  enabled?: boolean;
+  disabledReason?: string;
   targetCount: number;
   years: {
     fy2567: number;
@@ -242,3 +249,19 @@ export interface YearlyComparisonData {
     pct70_69: number | null;
   };
 }
+
+export interface IndicatorConfig {
+  indicatorId: string;
+  code: string;
+  title: string;
+  shortName: string;
+  category: string;
+  enabled: boolean;
+  disabledReason?: string;
+  unitPrice: number;
+  defaultUnitPrice: number;
+  updatedAt?: string;
+}
+
+export type IndicatorSettingsMap = Record<string, IndicatorConfig>;
+

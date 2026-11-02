@@ -10,6 +10,7 @@ import { RevenuePage } from './pages/RevenuePage';
 import { DataAuditPage } from './pages/DataAuditPage';
 import { NetworkStatusPage } from './pages/NetworkStatusPage';
 import { Ppfs30CatalogPage } from './pages/Ppfs30CatalogPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { api } from './services/api';
 import { OverviewData } from './types/ppfs';
 
@@ -62,7 +63,7 @@ export function App() {
       {/* Main Container */}
       <main className="main-content">
         {/* Global Filter Bar (shown on relevant tabs) */}
-        {activeTab !== 'network' && activeTab !== 'matrix' && activeTab !== 'yearly' && activeTab !== 'catalog30' && (
+        {activeTab !== 'network' && activeTab !== 'matrix' && activeTab !== 'yearly' && activeTab !== 'catalog30' && activeTab !== 'settings' && (
           <FilterBar
             selectedCenter={selectedCenter}
             onChangeCenter={setSelectedCenter}
@@ -143,6 +144,15 @@ export function App() {
             selectedCenter={selectedCenter}
             startDate={startDate}
             endDate={endDate}
+          />
+        )}
+
+        {/* Tab: Settings & Capacity Management */}
+        {activeTab === 'settings' && (
+          <SettingsPage
+            onSettingsSaved={() => {
+              fetchOverview();
+            }}
           />
         )}
 
