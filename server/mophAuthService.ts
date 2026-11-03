@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { query } from './db.js';
+import { pool } from './db.js';
 
 export interface MophUserProfile {
   hash_cid?: string;
@@ -225,7 +225,7 @@ export class MophAuthService {
             AND (account_disable IS NULL OR account_disable != 'Y')
           LIMIT 1
         `;
-        const rows: any = await query(sql, [normalizedHash]);
+        const [rows]: any = await pool.query(sql, [normalizedHash]);
         if (rows && rows.length > 0) {
           console.log(`[MOPH AUTH] Matched opduser by hash_cid: ${rows[0].loginname} (${rows[0].name})`);
           return {
@@ -251,7 +251,7 @@ export class MophAuthService {
             AND (u.account_disable IS NULL OR u.account_disable != 'Y')
           LIMIT 1
         `;
-        const licRows: any = await query(licSql, [cleanLic, `%${cleanLic}%`]);
+        const [licRows]: any = await pool.query(licSql, [cleanLic, `%${cleanLic}%`]);
         if (licRows && licRows.length > 0) {
           console.log(`[MOPH AUTH] Matched opduser by doctor license_id: ${licRows[0].loginname} (${licRows[0].name})`);
           return {
@@ -278,7 +278,7 @@ export class MophAuthService {
             AND (account_disable IS NULL OR account_disable != 'Y')
           LIMIT 1
         `;
-        const nameRows: any = await query(nameSql, [`%${cleanName}%`, `%${strippedName}%`]);
+        const [nameRows]: any = await pool.query(nameSql, [`%${cleanName}%`, `%${strippedName}%`]);
         if (nameRows && nameRows.length > 0) {
           console.log(`[MOPH AUTH] Matched opduser by name: ${nameRows[0].loginname} (${nameRows[0].name})`);
           return {
