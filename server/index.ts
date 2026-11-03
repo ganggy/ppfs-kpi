@@ -8,6 +8,7 @@ import { PPFS_INDICATORS, getIndicatorById } from './ppfsIndicators.js';
 import { PPFSSettingsService } from './ppfsSettingsService.js';
 import { checkAllPcuHealth, checkPcuHealth, PCU_REGISTRY } from './pcuDb.js';
 import { testConnection } from './db.js';
+import { MophAuthService } from './mophAuthService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,6 +30,167 @@ app.get('/api/health', async (req, res) => {
     timestamp: new Date().toISOString(),
     db: dbStatus,
   });
+});
+
+// --- MOPH Provider ID (หมอพร้อม) Authentication Endpoints ---
+
+// Step 1: Login Redirect
+app.get('/api/auth/moph/login', (req, res) => {
+  try {
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3600';
+    const callbackUrl = `${protocol}://${host}/api/auth/moph/callback`;
+    const redirectUrl = MophAuthService.getLoginRedirectUrl(callbackUrl);
+    res.json({ success: true, redirectUrl, callbackUrl });
+  } catch (err: any) {
+    console.error('Error generating login url:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Step 2-4: OAuth Callback Handler
+app.get('/api/auth/moph/callback', async (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  const code = (req.query.code as string) || '';
+  const error = (req.query.error as string) || '';
+
+  if (error || !code) {
+    return res.status(400).send(`
+      <!DOCTYPE html>
+      <html>
+        <head><meta charset="utf-8"><title>เข้าสู่ระบบไม่สำเร็จ</title></head>
+        <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f8fafc; margin: 0;">
+          <div style="background: white; padding: 32px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center; max-width: 420px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+            <h2 style="color: #dc2626; margin: 0 0 12px;">เข้าสู่ระบบไม่สำเร็จ</h2>
+            <p style="color: #64748b; font-size: 14px; margin-bottom: 24px;">${error || 'ไม่ได้รับ authorization code จากระบบ Health ID'}</p>
+            <a href="/" style="display: inline-block; background: #2563eb; color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 500;">กลับสู่หน้าหลัก</a>
+          </div>
+        </body>
+      </html>
+    `);
+  }
+
+  try {
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3600';
+    const callbackUrl = `${protocol}://${host}/api/auth/moph/callback`;
+    const userAgent = req.headers['user-agent'] || 'Mozilla/5.0';
+
+    const session = await MophAuthService.handleCallback(code, callbackUrl, userAgent);
+
+    // Render HTML callback that stores session in localStorage and redirects back to app
+    const sessionJson = JSON.stringify({
+      token: session.token,
+      user: {
+        name: session.hosxpUser?.name || session.providerProfile?.name_th || 'บุคลากรสาธารณสุข',
+        loginname: session.hosxpUser?.loginname || 'moph_user',
+        position: session.hosxpUser?.entryposition || session.providerProfile?.position || 'เจ้าหน้าที่',
+        doctorcode: session.hosxpUser?.doctorcode,
+        licenseId: session.providerProfile?.license_id,
+        organization: session.providerProfile?.organization || 'โรงพยาบาลโคกศรีสุพรรณ',
+        matchedBy: session.matchedBy,
+      },
+    });
+
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>เข้าสู่ระบบสำเร็จ - PPFS Platform</title>
+        </head>
+        <body style="font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f0fdf4; margin: 0;">
+          <div style="background: white; padding: 36px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); text-align: center; max-width: 440px;">
+            <div style="width: 64px; height: 64px; background: #dcfce7; color: #16a34a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 16px;">
+              ✓
+            </div>
+            <h2 style="color: #166534; margin: 0 0 8px; font-size: 20px;">ยืนยันตัวตนสำเร็จ</h2>
+            <p style="color: #4b5563; font-size: 14px; margin: 0 0 16px;">
+              ยินดีต้อนรับคุณ <strong>${session.hosxpUser?.name || session.providerProfile?.name_th}</strong>
+            </p>
+            <p style="color: #94a3b8; font-size: 12px; margin: 0 0 20px;">กำลังนำท่านเข้าสู่ระบบ...</p>
+            <div style="height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;">
+              <div style="width: 100%; height: 100%; background: #22c55e; animation: load 1.2s ease-in-out infinite;"></div>
+            </div>
+          </div>
+          <script>
+            try {
+              const sessionData = ${sessionJson};
+              localStorage.setItem('ppfs_auth_session', JSON.stringify(sessionData));
+              sessionStorage.setItem('ppfs_auth_session', JSON.stringify(sessionData));
+              // Check if opened as popup or redirect
+              if (window.opener && !window.opener.closed) {
+                window.opener.postMessage({ type: 'MOPH_AUTH_SUCCESS', session: sessionData }, '*');
+                setTimeout(() => window.close(), 1000);
+              } else {
+                setTimeout(() => { window.location.href = '/'; }, 1000);
+              }
+            } catch (err) {
+              console.error(err);
+              window.location.href = '/';
+            }
+          </script>
+        </body>
+      </html>
+    `);
+  } catch (err: any) {
+    console.error('[MOPH AUTH ERROR]:', err);
+    return res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+        <head><meta charset="utf-8"><title>เกิดข้อผิดพลาดในการยืนยันตัวตน</title></head>
+        <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #fff1f2; margin: 0;">
+          <div style="background: white; padding: 32px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center; max-width: 480px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">❌</div>
+            <h2 style="color: #be123c; margin: 0 0 12px;">เกิดข้อผิดพลาดในการเชื่อมต่อ Provider ID</h2>
+            <p style="color: #64748b; font-size: 14px; margin-bottom: 24px; word-break: break-word;">${err.message || 'OAuth Exchange Failed'}</p>
+            <a href="/" style="display: inline-block; background: #0f172a; color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 500;">กลับสู่หน้าหลัก</a>
+          </div>
+        </body>
+      </html>
+    `);
+  }
+});
+
+// Get Current User Profile
+app.get('/api/auth/me', (req, res) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : (req.query.token as string);
+
+  if (!token) {
+    return res.status(401).json({ success: false, authenticated: false, message: 'No session token provided' });
+  }
+
+  const session = MophAuthService.getSession(token);
+  if (!session) {
+    return res.status(401).json({ success: false, authenticated: false, message: 'Invalid or expired session' });
+  }
+
+  res.json({
+    success: true,
+    authenticated: true,
+    user: {
+      name: session.hosxpUser?.name || session.providerProfile?.name_th || 'บุคลากรสาธารณสุข',
+      loginname: session.hosxpUser?.loginname || 'moph_user',
+      position: session.hosxpUser?.entryposition || session.providerProfile?.position || 'เจ้าหน้าที่',
+      doctorcode: session.hosxpUser?.doctorcode,
+      licenseId: session.providerProfile?.license_id,
+      organization: session.providerProfile?.organization || 'โรงพยาบาลโคกศรีสุพรรณ',
+      matchedBy: session.matchedBy,
+      loginAt: session.loginAt,
+    },
+  });
+});
+
+// Logout
+app.post('/api/auth/logout', (req, res) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : req.body.token;
+  if (token) {
+    MophAuthService.revokeSession(token);
+  }
+  res.json({ success: true, message: 'Logged out successfully' });
 });
 
 // Network Centers

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   BarChart3, 
   Target, 
@@ -10,16 +10,40 @@ import {
   Layers,
   CalendarDays,
   TrendingUp,
-  Sliders
+  Sliders,
+  LogIn,
+  LogOut,
+  UserCheck
 } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: string;
   onSelectTab: (tab: string) => void;
   onlineCount?: number;
+  user?: {
+    name: string;
+    loginname: string;
+    position?: string;
+    doctorcode?: string;
+    licenseId?: string;
+    organization?: string;
+    matchedBy?: string;
+  } | null;
+  onLoginClick?: () => void;
+  onLogoutClick?: () => void;
+  loggingIn?: boolean;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab, onlineCount = 10 }) => {
+export const Navbar: React.FC<NavbarProps> = ({ 
+  activeTab, 
+  onSelectTab, 
+  onlineCount = 10,
+  user,
+  onLoginClick,
+  onLogoutClick,
+  loggingIn = false
+}) => {
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const navItems = [
     { id: 'overview', label: 'ภาพรวม', icon: BarChart3 },
     { id: 'yearly', label: 'เปรียบเทียบรายปี', icon: TrendingUp },
@@ -103,6 +127,112 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab, onlineCo
               <span style={{ color: '#64748b' }}>|</span>
               <span style={{ color: '#38bdf8', fontWeight: 600 }}>ประชากรในเขต: 26,080 คน</span>
             </div>
+
+            {/* MOPH Provider ID Login / User Profile */}
+            {user ? (
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    backgroundColor: '#14532d',
+                    color: '#dcfce7',
+                    border: '1px solid #22c55e',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <UserCheck size={16} color="#4ade80" />
+                  <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {user.name}
+                  </span>
+                  <span style={{ fontSize: '0.7rem', backgroundColor: '#16a34a', color: 'white', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                    {user.matchedBy === 'hash_cid' ? 'HOSxP (CID)' : user.matchedBy === 'license_id' ? 'ว./พ.' : 'MOPH'}
+                  </span>
+                </button>
+
+                {showUserMenu && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: '110%',
+                      backgroundColor: '#1e293b',
+                      borderRadius: '10px',
+                      padding: '0.75rem',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
+                      border: '1px solid #334155',
+                      minWidth: '220px',
+                      zIndex: 100,
+                    }}
+                  >
+                    <div style={{ borderBottom: '1px solid #334155', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
+                      <p style={{ margin: 0, fontWeight: 700, fontSize: '0.85rem', color: '#f8fafc' }}>{user.name}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
+                        {user.position || 'เจ้าหน้าที่'} • {user.organization || 'รพ.โคกศรีสุพรรณ'}
+                      </p>
+                      {user.licenseId && (
+                        <p style={{ margin: '2px 0 0', fontSize: '0.7rem', color: '#38bdf8' }}>
+                          เลขใบอนุญาต: {user.licenseId}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        onLogoutClick?.();
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        background: '#dc2626',
+                        color: 'white',
+                        border: 'none',
+                        padding: '0.4rem 0.6rem',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <LogOut size={14} />
+                      <span>ออกจากระบบ</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={onLoginClick}
+                disabled={loggingIn}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  backgroundColor: '#059669',
+                  color: 'white',
+                  border: '1px solid #10b981',
+                  padding: '0.38rem 0.85rem',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: loggingIn ? 'wait' : 'pointer',
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <LogIn size={15} />
+                <span>{loggingIn ? 'กำลังเชื่อมต่อ...' : 'Login หมอพร้อม (Provider ID)'}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

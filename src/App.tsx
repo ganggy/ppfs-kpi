@@ -19,6 +19,79 @@ export function App() {
   const [selectedCenter, setSelectedCenter] = useState<string>('ALL');
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('hpv_dna');
 
+  // MOPH Auth State
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [loggingIn, setLoggingIn] = useState<boolean>(false);
+
+  // Check auth session on mount & listen to OAuth callback popup messages
+  useEffect(() => {
+    // 1. Check existing session in localStorage
+    const saved = localStorage.getItem('ppfs_auth_session');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.token) {
+          localStorage.setItem('ppfs_auth_token', parsed.token);
+          api.getCurrentUser(parsed.token).then((res) => {
+            if (res.authenticated && res.user) {
+              setCurrentUser(res.user);
+            } else {
+              localStorage.removeItem('ppfs_auth_session');
+              localStorage.removeItem('ppfs_auth_token');
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Failed to parse saved session', e);
+      }
+    }
+
+    // 2. Listen to postMessage from OAuth popup
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'MOPH_AUTH_SUCCESS' && event.data?.session) {
+        const session = event.data.session;
+        localStorage.setItem('ppfs_auth_token', session.token);
+        localStorage.setItem('ppfs_auth_session', JSON.stringify(session));
+        setCurrentUser(session.user);
+        setLoggingIn(false);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const handleLogin = async () => {
+    try {
+      setLoggingIn(true);
+      const { redirectUrl } = await api.getMophLoginUrl();
+      // Open in popup or redirect
+      const width = 600;
+      const height = 750;
+      const left = window.screen.width / 2 - width / 2;
+      const top = window.screen.height / 2 - height / 2;
+      const popup = window.open(
+        redirectUrl,
+        'moph_login_popup',
+        `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes`
+      );
+
+      // If popup blocked, redirect directly
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        window.location.href = redirectUrl;
+      }
+    } catch (err: any) {
+      alert(`ไม่สามารถเปิดหน้า Login หมอพร้อมได้: ${err.message}`);
+      setLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (confirm('คุณต้องการออกจากระบบหรือไม่?')) {
+      await api.logout();
+      setCurrentUser(null);
+    }
+  };
+
   // Dates: Default to FY 2025 (2568)
   const today = new Date();
   const fyYear = today.getMonth() >= 9 ? today.getFullYear() + 1 : today.getFullYear();
@@ -58,7 +131,14 @@ export function App() {
   return (
     <div className="app-container">
       {/* Navbar Header */}
-      <Navbar activeTab={activeTab} onSelectTab={setActiveTab} />
+      <Navbar 
+        activeTab={activeTab} 
+        onSelectTab={setActiveTab}
+        user={currentUser}
+        onLoginClick={handleLogin}
+        onLogoutClick={handleLogout}
+        loggingIn={loggingIn}
+      />
 
       {/* Main Container */}
       <main className="main-content">

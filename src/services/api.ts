@@ -167,4 +167,64 @@ export const api = {
     if (!res.ok) throw new Error('Failed to reset PPFS settings');
     return res.json();
   },
+
+  // Auth: Get MOPH Login URL
+  async getMophLoginUrl(): Promise<{ redirectUrl: string; callbackUrl: string }> {
+    const res = await fetch(`${API_BASE}/auth/moph/login`);
+    if (!res.ok) throw new Error('Failed to get login URL');
+    const json = await res.json();
+    return json;
+  },
+
+  // Auth: Check Current User
+  async getCurrentUser(token?: string): Promise<{
+    authenticated: boolean;
+    user?: {
+      name: string;
+      loginname: string;
+      position?: string;
+      doctorcode?: string;
+      licenseId?: string;
+      organization?: string;
+      matchedBy?: string;
+    };
+  }> {
+    const authToken = token || localStorage.getItem('ppfs_auth_token');
+    if (!authToken) return { authenticated: false };
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+      if (!res.ok) {
+        localStorage.removeItem('ppfs_auth_token');
+        localStorage.removeItem('ppfs_auth_session');
+        return { authenticated: false };
+      }
+      const json = await res.json();
+      return json;
+    } catch {
+      return { authenticated: false };
+    }
+  },
+
+  // Auth: Logout
+  async logout(): Promise<void> {
+    const authToken = localStorage.getItem('ppfs_auth_token');
+    try {
+      if (authToken) {
+        await fetch(`${API_BASE}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: authToken }),
+        });
+      }
+    } finally {
+      localStorage.removeItem('ppfs_auth_token');
+      localStorage.removeItem('ppfs_auth_session');
+      sessionStorage.removeItem('ppfs_auth_session');
+    }
+  },
 };
