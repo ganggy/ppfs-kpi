@@ -1,6 +1,6 @@
 {
   "name": "ppfs-kpi-network",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "PPFS KPI & Network Monitoring Platform - Khok Si Suphan CUP",
   "type": "module",
   "scripts": {
@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview --port 5180",
     "server": "node --import tsx server/index.ts",
-    "start": "node --import tsx server/index.ts"
+    "start": "node --import tsx server/index.ts",
+    "generate:tb": "node --import tsx server/generateTbRiskExcel.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
