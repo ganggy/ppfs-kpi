@@ -163,6 +163,10 @@ export const ALL_PP_SPECIAL_IDS = Array.from(
   new Set(PPFS_INDICATORS.flatMap((ind) => ind.nhsoRules?.ppSpecialTypeIds || []))
 );
 
+export const ALL_LAB_ITEM_CODES = Array.from(
+  new Set(PPFS_INDICATORS.flatMap((ind) => ind.nhsoRules?.labItemsCodes || []))
+);
+
 // ============================================================================
 // Ultra-Fast In-Memory District Data Store (Zero SQL Subquery Engine)
 // ============================================================================
@@ -207,6 +211,7 @@ interface DistrictMemoryStore {
   clinicsByHn: Map<string, Set<string>>;
   visitsByIcd10: Map<string, VisitItem[]>;
   visitsByPpSpecial: Map<number, VisitItem[]>;
+  visitsByLabItem: Map<number, VisitItem[]>;
   allUniqueVisits: VisitItem[];
 }
 
@@ -245,12 +250,13 @@ async function buildMemoryStore(): Promise<DistrictMemoryStore> {
   const todayStr = new Date().toISOString().slice(0, 10);
   const { y: nowY, m: nowM, d: nowD } = parseDateParts(todayStr);
 
-  // Load 1) Living District Patients, 2) Clinic Members, 3) PPFS Visits (since 2021-10-01), 4) PP Special
+  // Load 1) Living District Patients, 2) Clinic Members, 3) PPFS Visits (since 2021-10-01), 4) PP Special, 5) Lab Orders
   const [
     [ptRows],
     [cmRows],
     [visRows],
     [ppRows],
+    [labRows],
   ]: any = await Promise.all([
     pool.query(
       `SELECT 
@@ -286,6 +292,20 @@ async function buildMemoryStore(): Promise<DistrictMemoryStore> {
              AND pp.pp_special_type_id IN (?)
            GROUP BY o.hn, o.vstdate, pp.pp_special_type_id`,
           [ALL_PP_SPECIAL_IDS]
+        )
+      : Promise.resolve([[]]),
+    ALL_LAB_ITEM_CODES.length > 0
+      ? pool.query(
+          `SELECT o.hn, DATE_FORMAT(o.vstdate, '%Y-%m-%d') as vstdate, lo.lab_items_code
+           FROM ovst o
+           INNER JOIN lab_head lh ON lh.vn = o.vn
+           INNER JOIN lab_order lo ON lo.lab_order_number = lh.lab_order_number
+           WHERE o.vstdate >= '2021-10-01'
+             AND lo.lab_items_code IN (?)
+             AND lo.lab_order_result IS NOT NULL
+             AND lo.lab_order_result != ''
+           GROUP BY o.hn, o.vstdate, lo.lab_items_code`,
+          [ALL_LAB_ITEM_CODES]
         )
       : Promise.resolve([[]]),
   ]);
@@ -407,8 +427,39 @@ async function buildMemoryStore(): Promise<DistrictMemoryStore> {
     list.push(item);
   }
 
+  const visitsByLabItem = new Map<number, VisitItem[]>();
+  for (const r of labRows) {
+    const hn = String(r.hn);
+    if (!patientByHn.has(hn)) continue;
+    const vstdate = String(r.vstdate);
+    const labCode = Number(r.lab_items_code);
+    const { y, m, d } = parseDateParts(vstdate);
+    const fyThai = m >= 10 ? y + 544 : y + 543;
+    const monthStr = vstdate.slice(5, 7);
+    const ymStr = vstdate.slice(0, 7);
+
+    const item: VisitItem = {
+      hn,
+      vstdate,
+      code: `LAB:${labCode}`,
+      y,
+      m,
+      d,
+      fyThai,
+      monthStr,
+      ymStr,
+    };
+
+    let list = visitsByLabItem.get(labCode);
+    if (!list) {
+      list = [];
+      visitsByLabItem.set(labCode, list);
+    }
+    list.push(item);
+  }
+
   console.log(
-    `⚡ [PPFS In-Memory Engine] Loaded ${patients.length.toLocaleString()} patients, ${cmRows.length.toLocaleString()} clinic records, and ${allUniqueVisits.length.toLocaleString()} PPFS visits in ${Date.now() - t0}ms`
+    `⚡ [PPFS In-Memory Engine] Loaded ${patients.length.toLocaleString()} patients, ${cmRows.length.toLocaleString()} clinic records, ${allUniqueVisits.length.toLocaleString()} PPFS visits, and ${labRows.length.toLocaleString()} lab records in ${Date.now() - t0}ms`
   );
 
   return {
@@ -418,6 +469,7 @@ async function buildMemoryStore(): Promise<DistrictMemoryStore> {
     clinicsByHn,
     visitsByIcd10,
     visitsByPpSpecial,
+    visitsByLabItem,
     allUniqueVisits,
   };
 }
@@ -515,6 +567,20 @@ function buildPriorExcludedHnSet(
     }
   }
 
+  const labCodes = ind.nhsoRules?.labItemsCodes;
+  if (labCodes) {
+    for (const labCode of labCodes) {
+      const list = store.visitsByLabItem.get(labCode);
+      if (!list) continue;
+      for (let i = 0; i < list.length; i++) {
+        const v = list[i];
+        if (v.vstdate >= priorStart && v.vstdate <= priorEnd) {
+          excluded.add(v.hn);
+        }
+      }
+    }
+  }
+
   return excluded;
 }
 
@@ -574,6 +640,17 @@ function getIndicatorVisits(store: DistrictMemoryStore, ind: PPFSIndicator): Vis
   if (ppIds) {
     for (const ppId of ppIds) {
       const list = store.visitsByPpSpecial.get(ppId);
+      if (list) {
+        for (let i = 0; i < list.length; i++) {
+          result.push(list[i]);
+        }
+      }
+    }
+  }
+  const labCodes = ind.nhsoRules?.labItemsCodes;
+  if (labCodes) {
+    for (const labCode of labCodes) {
+      const list = store.visitsByLabItem.get(labCode);
       if (list) {
         for (let i = 0; i < list.length; i++) {
           result.push(list[i]);

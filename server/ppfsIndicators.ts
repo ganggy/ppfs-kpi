@@ -22,6 +22,8 @@ export interface NHSOEligibilityRules {
   excludePriorIntervalYears?: number;
   /** รหัสตาราง pp_special_type_id ใน HOSxP ที่นับเป็นผลงานได้ด้วย */
   ppSpecialTypeIds?: number[];
+  /** รหัสตาราง lab_items_code ใน HOSxP (lab_order) ที่นับเป็นผลงานได้ด้วย เช่น Cholesterol (102), HDL (91) */
+  labItemsCodes?: number[];
   /** สัดส่วนความชุกของกลุ่มเป้าหมายเฉพาะ (เช่น หญิงตั้งครรภ์ ~5% ของหญิงวัยเจริญพันธุ์, กลุ่มเสี่ยงสูง) */
   targetPrevalenceFactor?: number;
 }
@@ -150,12 +152,13 @@ export const PPFS_INDICATORS: PPFSIndicator[] = [
     unitPrice: 160,
     nhsoGoalPercent: 75,
     icd10Codes: ['Z132', 'Z017'],
-    description: 'ตรวจวัดระดับไขมันในเลือด Total Cholesterol และ HDL ภายหลังอดอาหาร 8 ชม. (อัตราจ่าย สปสช. เหมาจ่าย 160 บาท/ครั้ง ทุก 5 ปี) สำหรับประชาชนไทยอายุ 45-70 ปี ยกเว้นผู้มีประวัติรักษาโรคไขมันในเลือดสูง (Clinic 001/002/E78)',
+    description: 'ตรวจวัดระดับไขมันในเลือด Total Cholesterol และ HDL ภายหลังอดอาหาร 8 ชม. (อัตราจ่าย สปสช. เหมาจ่าย 160 บาท/ครั้ง ทุก 5 ปี) สำหรับประชาชนไทยอายุ 45-70 ปี โดยนับจากรหัส ICD-10 (Z132, Z017) หรือผลตรวจ Lab Cholesterol/HDL ใน HOSxP ยกเว้นผู้ป่วยคลินิก DM/HT (Clinic 001/002)',
     isNew2569: true,
     nhsoRules: {
       requireThaiNationality: true,
       excludeChronicClinics: ['001', '002'],
       excludePriorIntervalYears: 4, // ไม่ตรวจซ้ำภายใน 5 ปี
+      labItemsCodes: [102, 91], // Cholesterol (102) & HDL (91)
     },
     auditRules: {
       minAge: 45,
