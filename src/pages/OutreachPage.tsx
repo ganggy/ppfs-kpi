@@ -290,6 +290,7 @@ export const OutreachPage: React.FC<OutreachPageProps> = ({
                   <th>เลขบัตร ปชช.</th>
                   <th>ชื่อ - นามสกุล</th>
                   <th style={{ textAlign: 'center' }}>อายุ / เพศ</th>
+                  <th>บ้านเลขที่</th>
                   <th>หมู่ที่</th>
                   <th>ตำบล</th>
                   <th style={{ textAlign: 'center' }}>Type Area</th>
@@ -310,6 +311,7 @@ export const OutreachPage: React.FC<OutreachPageProps> = ({
                     <td style={{ textAlign: 'center' }}>
                       {pt.age} ปี ({pt.gender})
                     </td>
+                    <td style={{ color: '#475569', fontWeight: 500 }}>{pt.addrpart || (pt.address && pt.address !== '-' ? pt.address.replace(/^บ้านเลขที่\s*/, '') : '-')}</td>
                     <td style={{ color: '#475569' }}>{pt.moo}</td>
                     <td style={{ color: '#475569' }}>{pt.subdistrict}</td>
                     <td style={{ textAlign: 'center' }}>

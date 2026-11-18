@@ -972,6 +972,7 @@ export class PPFSEngine {
       name: pt.fullname,
       age: pt.ageNow,
       gender: pt.sex === '1' ? 'ชาย' : pt.sex === '2' ? 'หญิง' : 'ไม่ระบุ',
+      addrpart: pt.addrpart || '-',
       address: pt.addrpart ? `บ้านเลขที่ ${pt.addrpart}` : '-',
       moo: pt.moopart ? `หมู่ ${pt.moopart}` : '-',
       villageName: `หมู่ ${pt.moopart || '-'}`,

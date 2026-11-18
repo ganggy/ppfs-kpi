@@ -104,6 +104,7 @@ export interface PatientRecord {
   name: string;
   age: number;
   gender: string;
+  addrpart?: string;
   address: string;
   moo: string;
   villageName: string;
